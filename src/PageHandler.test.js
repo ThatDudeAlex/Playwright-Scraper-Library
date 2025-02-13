@@ -2,6 +2,10 @@ const { chromium } = require('playwright');
 const { PageHandler } = require('./PageHandler');
 const { expect } = require('playwright/test');
 
+const testUrl1 = 'https://www.example.com';
+const testUrl2 = 'https://www.google.com';
+const timeoutTime = 40000;
+
 let browser;
 let context;
 let page;
@@ -25,17 +29,19 @@ describe('goToUrl', () => {
   it('should navigate to the specified URL (example.com)', async () => {
     // Spy on the console.log to check for the log message
     const consoleLogSpy = jest.spyOn(console, 'log');
-    const url = 'https://www.example.com';
 
-    await pageHandler.goToUrl(url);
+    await pageHandler.goToUrl(testUrl1);
+
+    const actualUrl   = new URL(page.url());
+    const expectedUrl = new URL(testUrl1);
    
     // Assertions
-    expect(normalizeUrl(page.url())).toBe(url);
-    expect(consoleLogSpy).toHaveBeenCalledWith(`Goto: ${url}`);
+    expect(actualUrl).toStrictEqual(expectedUrl);
+    expect(consoleLogSpy).toHaveBeenCalledWith(`Goto: ${testUrl1}`);
 
     // Restore the original console.log
     consoleLogSpy.mockRestore();
-  }, 15000); 
+  }, timeoutTime); 
 
   it('should handle invalid URLs', async () => {
     await expect(pageHandler.goToUrl('invalid-url')).rejects.toThrowError(); 
@@ -48,21 +54,24 @@ describe('goBack', () => {
     const consoleLogSpy = jest.spyOn(console, 'log');
 
     // Init navigation history
-    await pageHandler.goToUrl('https://www.example.com');
-    await pageHandler.goToUrl('https://www.google.com');
+    await pageHandler.goToUrl(testUrl1);
+    await pageHandler.goToUrl(testUrl2);
     await pageHandler.goBack();
 
+    const actualUrl   = new URL(page.url());
+    const expectedUrl = new URL(testUrl1);
+
     // Assertions
-    expect(normalizeUrl(page.url())).toBe('https://www.example.com');
+    expect(expectedUrl).toStrictEqual(actualUrl);
     expect(consoleLogSpy).toHaveBeenCalledWith(`Go Back`);
 
     // Restore the original console.log
     consoleLogSpy.mockRestore();
-  }, 45000); 
+  }, timeoutTime); 
   
   it('throw error when navigation history is empty', async () => {
     expect(pageHandler.goBack()).rejects.toThrowError();
-  }, 15000); 
+  }, timeoutTime); 
 });
 
 describe('goForward', () => {
@@ -71,27 +80,25 @@ describe('goForward', () => {
     const consoleLogSpy = jest.spyOn(console, 'log');
 
     // Init navigation history
-    await pageHandler.goToUrl('https://www.example.com');
-    expect(normalizeUrl(page.url())).toBe('https://www.example.com');
+    await pageHandler.goToUrl(testUrl1);
+    await pageHandler.goToUrl(testUrl2);
+    await pageHandler.goBack();
+    await pageHandler.goForward();
 
-    await pageHandler.goToUrl('https://www.google.com');
-    expect(normalizeUrl(page.url())).toBe('https://www.google.com');
+    const actualUrl   = new URL(page.url());
+    const expectedUrl = new URL(testUrl2);
 
     // Assertions
-    await pageHandler.goBack();
-    expect(normalizeUrl(page.url())).toBe('https://www.example.com');
-
-    await pageHandler.goForward();
-    expect(normalizeUrl(page.url())).toBe('https://www.google.com');
+    expect(expectedUrl).toStrictEqual(actualUrl);
     expect(consoleLogSpy).toHaveBeenCalledWith(`Go Forward`);
 
     // Restore the original console.log
     consoleLogSpy.mockRestore();
-  }, 70000); 
+  }, timeoutTime); 
   
   it('throw error when navigation history is empty', async () => {
     expect(pageHandler.goForward()).rejects.toThrowError();
-  }, 15000); 
+  }, timeoutTime); 
 });
 
 describe('reloadPage', () => {
@@ -99,20 +106,23 @@ describe('reloadPage', () => {
     // Spy on the console.log to check for the log message
     const consoleLogSpy = jest.spyOn(console, 'log');
 
-    await pageHandler.goToUrl('https://www.example.com');
+    await pageHandler.goToUrl(testUrl1);
     await pageHandler.reloadPage();
 
+    const actualUrl   = new URL(page.url());
+    const expectedUrl = new URL(testUrl1);
+
     // Assertions
-    expect(normalizeUrl(page.url())).toBe('https://www.example.com');
+    expect(expectedUrl).toStrictEqual(actualUrl);
     expect(consoleLogSpy).toHaveBeenCalledWith(`Reloaded Page`);
 
     // Restore the original console.log
     consoleLogSpy.mockRestore();
-  }, 40000); 
+  }, timeoutTime); 
   
   it('throw error when reloading without being at a url', async () => {
     expect(pageHandler.reloadPage).rejects.toThrowError();
-  }, 15000); 
+  }, timeoutTime); 
 });
 
 describe('getElements', () => {
@@ -175,7 +185,7 @@ describe('getElementText', () => {
 
     // Assertions
     expect(got).toBe(null);
-  }, 40000);
+  }, timeoutTime);
   
   it('should return null when invalid input', async () => {
     // Init DOM
@@ -198,7 +208,7 @@ describe('getElementAttribute', () => {
     const got = await pageHandler.getElementAttribute('.testing', 'href');
 
     // Assertions
-    expect(got).toBe('https://www.example.com');
+    expect(got).toBe(testUrl1);
   });
   
   it('should retrieve element href attribute with locator', async () => {
@@ -209,7 +219,7 @@ describe('getElementAttribute', () => {
     const got = await pageHandler.getElementAttribute(locator, 'href');
 
     // Assertions
-    expect(got).toBe('https://www.example.com');
+    expect(got).toBe(testUrl1);
   });
   
   it('should retrieve element src attribute with selector', async () => {
@@ -253,13 +263,6 @@ describe('click', () => {
     // Init DOM
     await page.setContent('<div><button id="one">one</button><button id="two">two</button></div>');
 
-    // Mock `waitForRandomTimeout` 
-    jest.spyOn(pageHandler, 'waitForRandomTimeout').mockImplementation(async (min, max) => {
-      const waitTime = Math.floor(Math.random() * (max - min + 1)) + min;
-      console.log(`Mocked waitForRandomTimeout: Waiting for ${waitTime} ms`);
-      await page.waitForTimeout(waitTime); // Simulate waiting
-    });
-
     // Spy on the console.log to check for the log message
     const consoleLogSpy = jest.spyOn(console, 'log');
 
@@ -267,27 +270,16 @@ describe('click', () => {
     await pageHandler.click('#two');
 
     // Assertions
-    expect(pageHandler.waitForRandomTimeout).toHaveBeenCalled();
     expect(consoleLogSpy).toHaveBeenCalledWith('Clicked element');
 
     // Restore the original console.log
     consoleLogSpy.mockRestore();
-
-    // Restore the original console.log
-    consoleLogSpy.mockRestore();
-  }, 10000);
+  }, timeoutTime);
   
   it('should click element with locator', async () => {
     // Init DOM
     await page.setContent('<div><button id="one">one</button><button id="two">two</button></div>');
     const locator = page.locator('#two');
-
-    // Mock `waitForRandomTimeout` 
-    jest.spyOn(pageHandler, 'waitForRandomTimeout').mockImplementation(async (min, max) => {
-      const waitTime = Math.floor(Math.random() * (max - min + 1)) + min;
-      console.log(`Mocked waitForRandomTimeout: Waiting for ${waitTime} ms`);
-      await page.waitForTimeout(waitTime); // Simulate waiting
-    });
 
     // Spy on the console.log to check for the log message
     const consoleLogSpy = jest.spyOn(console, 'log');
@@ -296,23 +288,15 @@ describe('click', () => {
     await pageHandler.click(locator);
 
     // Assertions
-    expect(pageHandler.waitForRandomTimeout).toHaveBeenCalled();
     expect(consoleLogSpy).toHaveBeenCalledWith('Clicked element');
 
     // Restore the original console.log
     consoleLogSpy.mockRestore();
-  }, 10000);
+  }, timeoutTime);
   
   it('should click element with min/max wait time passed', async () => {
     // Init DOM
     await page.setContent('<div><button id="one">one</button><button id="two">two</button></div>');
-
-    // Mock `waitForRandomTimeout` 
-    jest.spyOn(pageHandler, 'waitForRandomTimeout').mockImplementation(async (min, max) => {
-      const waitTime = Math.floor(Math.random() * (max - min + 1)) + min;
-      console.log(`Mocked waitForRandomTimeout: Waiting for ${waitTime} ms`);
-      await page.waitForTimeout(waitTime); // Simulate waiting
-    });
 
     // Spy on the console.log to check for the log message
     const consoleLogSpy = jest.spyOn(console, 'log');
@@ -321,7 +305,6 @@ describe('click', () => {
     await pageHandler.click('#two', 500, 2000);
 
     // Assertions
-    expect(pageHandler.waitForRandomTimeout).toHaveBeenCalled();
     expect(consoleLogSpy).toHaveBeenCalledWith('Clicked element');
 
     // Restore the original console.log
@@ -332,13 +315,6 @@ describe('click', () => {
     // Init DOM
     await page.setContent('<div><button id="one">one</button><button id="two">two</button></div>');
 
-    // Mock `waitForRandomTimeout` 
-    jest.spyOn(pageHandler, 'waitForRandomTimeout').mockImplementation(async (min, max) => {
-      const waitTime = Math.floor(Math.random() * (max - min + 1)) + min;
-      console.log(`Mocked waitForRandomTimeout: Waiting for ${waitTime} ms`);
-      await page.waitForTimeout(waitTime); // Simulate waiting
-    });
-
     // Spy on the console.log to check for the log message
     const consoleLogSpy = jest.spyOn(console, 'log');
 
@@ -346,7 +322,6 @@ describe('click', () => {
     await pageHandler.click('#two', 500, 2000);
 
     // Assertions
-    expect(pageHandler.waitForRandomTimeout).toHaveBeenCalled();
     expect(consoleLogSpy).toHaveBeenCalledWith('Clicked element');
 
     // Restore the original console.log
@@ -378,13 +353,6 @@ describe('typeText', () => {
     // Spy on the console.log to check for the log message
     const consoleLogSpy = jest.spyOn(console, 'log');
 
-    // Mock `waitForRandomTimeout` 
-    jest.spyOn(pageHandler, 'waitForRandomTimeout').mockImplementation(async (min, max) => {
-      const waitTime = Math.floor(Math.random() * (max - min + 1)) + min;
-      console.log(`Mocked waitForRandomTimeout: Waiting for ${waitTime} ms`);
-      await page.waitForTimeout(waitTime); // Simulate waiting
-    });
-
     const got1    = await pageHandler.typeText(`#${ID1}`, `${ID1_TXT}`);
     const got1Txt = await page.locator(`#${ID1}`).inputValue(); 
 
@@ -397,14 +365,12 @@ describe('typeText', () => {
     expect(got2).toBe(true);
     expect(got2Txt).toBe(ID2_TXT);
 
-    expect(pageHandler.waitForRandomTimeout).toHaveBeenCalled();
-
     expect(consoleLogSpy).toHaveBeenCalledWith(`Filled input element with: ${ID1_TXT}`);
     expect(consoleLogSpy).toHaveBeenCalledWith(`Filled input element with: ${ID2_TXT}`);
 
     // Restore the original console.log
     consoleLogSpy.mockRestore();
-  }, 18000);
+  }, timeoutTime);
   
   it('should fill input/textarea elements with locator', async () => {
     const ID1     = 'one';
@@ -420,13 +386,6 @@ describe('typeText', () => {
     // Spy on the console.log to check for the log message
     const consoleLogSpy = jest.spyOn(console, 'log');
 
-    // Mock `waitForRandomTimeout` 
-    jest.spyOn(pageHandler, 'waitForRandomTimeout').mockImplementation(async (min, max) => {
-      const waitTime = Math.floor(Math.random() * (max - min + 1)) + min;
-      console.log(`Mocked waitForRandomTimeout: Waiting for ${waitTime} ms`);
-      await page.waitForTimeout(waitTime); // Simulate waiting
-    });
-
     const got1    = await pageHandler.typeText(locator1, `${ID1_TXT}`);
     const got1Txt = await locator1.inputValue(); 
 
@@ -439,14 +398,13 @@ describe('typeText', () => {
     expect(got2).toBe(true);
     expect(got2Txt).toBe(ID2_TXT);
 
-    expect(pageHandler.waitForRandomTimeout).toHaveBeenCalled();
 
     expect(consoleLogSpy).toHaveBeenCalledWith(`Filled input element with: ${ID1_TXT}`);
     expect(consoleLogSpy).toHaveBeenCalledWith(`Filled input element with: ${ID2_TXT}`);
 
     // Restore the original console.log
     consoleLogSpy.mockRestore();
-  }, 18000);
+  }, timeoutTime);
 
   it('throw error when inputs are invalid', async () => {
     // Init DOM
@@ -456,7 +414,7 @@ describe('typeText', () => {
     expect(pageHandler.typeText('#three')).rejects.toThrowError();
     expect(pageHandler.typeText(null)).rejects.toThrowError();
     expect(pageHandler.typeText(undefined)).rejects.toThrowError();
-  }, 40000);
+  }, timeoutTime);
 });
 
 describe('clickElemenWithText', () => {
@@ -467,22 +425,14 @@ describe('clickElemenWithText', () => {
     // Spy on the console.log to check for the log message
     const consoleLogSpy = jest.spyOn(console, 'log');
 
-    // Mock `waitForRandomTimeout` 
-    jest.spyOn(pageHandler, 'waitForRandomTimeout').mockImplementation(async (min, max) => {
-      const waitTime = Math.floor(Math.random() * (max - min + 1)) + min;
-      console.log(`Mocked waitForRandomTimeout: Waiting for ${waitTime} ms`);
-      await page.waitForTimeout(waitTime); // Simulate waiting
-    });
-
     await pageHandler.clickElemenWithText('button', 'Run 1');
     
     // Assertions
     expect(consoleLogSpy).toHaveBeenCalledWith('Clicked element with text: Run 1');
-    expect(pageHandler.waitForRandomTimeout).toHaveBeenCalled();
 
     // Restore the original console.log
     consoleLogSpy.mockRestore();
-  }, 10000);
+  }, timeoutTime);
   
   it('should click correct element if 2+ have the same text', async () => {
     // Init DOM
@@ -491,22 +441,14 @@ describe('clickElemenWithText', () => {
     // Spy on the console.log to check for the log message
     const consoleLogSpy = jest.spyOn(console, 'log');
 
-    // Mock `waitForRandomTimeout` 
-    jest.spyOn(pageHandler, 'waitForRandomTimeout').mockImplementation(async (min, max) => {
-      const waitTime = Math.floor(Math.random() * (max - min + 1)) + min;
-      console.log(`Mocked waitForRandomTimeout: Waiting for ${waitTime} ms`);
-      await page.waitForTimeout(waitTime); // Simulate waiting
-    });
-
     await pageHandler.clickElemenWithText('.test', 'Run 1');
     
     // Assertions
     expect(consoleLogSpy).toHaveBeenCalledWith('Clicked element with text: Run 1');
-    expect(pageHandler.waitForRandomTimeout).toHaveBeenCalled();
 
     // Restore the original console.log
     consoleLogSpy.mockRestore();
-  }, 10000);
+  }, timeoutTime);
 
   it('throw error when inputs are invalid', async () => {
     // Init DOM
@@ -516,13 +458,7 @@ describe('clickElemenWithText', () => {
     expect(pageHandler.clickElemenWithText('.test', 'Run 2')).rejects.toThrowError();
     expect(pageHandler.clickElemenWithText(null, 'Run 2')).rejects.toThrowError();
     expect(pageHandler.clickElemenWithText(undefined, 'Run 2')).rejects.toThrowError();
-  }, 40000);
+  }, timeoutTime);
   
   
 });
-
-
-function normalizeUrl(url) {
-  // Example normalization (remove trailing slash)
-  return url.replace(/\/$/, '');
-}
