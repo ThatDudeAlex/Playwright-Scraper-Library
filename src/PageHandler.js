@@ -19,7 +19,7 @@ class PageHandler {
    */
   async goToUrl(url, options = { waitUntil: 'load' }, waitMin=4000, waitMax=7000) {
     try {
-      console.log(`Goto: ${url}\n`);
+      console.log(`Goto: ${url}`);
       await this.page.goto(url, options);
       await this.waitForRandomTimeout(waitMin, waitMax);
     } catch (error) {
@@ -36,7 +36,7 @@ class PageHandler {
    */
   async goBack(options = { waitUntil: 'load' }, waitMin=4000, waitMax=7000) {
     try {
-      console.log(`Go Back\n`);
+      console.log(`Go Back`);
       await this.page.goBack(options);
       await this.waitForRandomTimeout(waitMin, waitMax);
     } catch (error) {
@@ -72,7 +72,7 @@ class PageHandler {
     try {
       await this.page.reload(options);
       await this.waitForRandomTimeout(waitMin, waitMax);
-      console.log(`Reloaded Page\n`);
+      console.log(`Reloaded Page`);
     } catch (error) {
       console.error(`Error reloading page: ${error}`);
       throw error;
@@ -106,7 +106,7 @@ class PageHandler {
   /**
    * Returns the text contents of the element found with `selectorOrLocator`
    * @param {string|import('playwright').Locator} selectorOrLocator - Either a CSS selector or a Locator
-   * @returns {string} the element text contents
+   * @returns {Promise<string>} the element text contents
    */
   async getElementText(selectorOrLocator) {
     try {
@@ -128,6 +128,9 @@ class PageHandler {
    */
   async getElementAttribute(selectorOrLocator, attributeName) { 
     try {
+      if (typeof selectorOrLocator === 'string') {
+        return await this.page.locator(selectorOrLocator).getAttribute(attributeName);
+      }
       return await selectorOrLocator.getAttribute(attributeName);
     } catch (error) {
       console.error(`Error getting element attribute: ${attributeName}`);
@@ -141,7 +144,7 @@ class PageHandler {
    * @param {number} [waitMin=3000]  The minimum wait time in milliseconds
    * @param {number} [waitMax=7000] The maximum wait time in milliseconds
    */
-  async clickAndWait(selectorOrLocator, waitMin=3000, waitMax=7000) {
+  async click(selectorOrLocator, waitMin=3000, waitMax=7000) {
     try {
       if (typeof selectorOrLocator === 'string') {
         await this.page.locator(selectorOrLocator).click();
